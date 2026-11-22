@@ -1,0 +1,395 @@
+/*
+ * opx_creator - "biometric scan". OPX tokens (RCSS has no variables: retheme by replacing these values).
+ *   holo        #4fe3ff              surfaces, hairlines, labels, the scan (alpha variants: #4fe3ffXX)
+ *   accent      #ff3b47              everything selected / active / confirm
+ *   text        #e9fbff              primary text
+ *   text-dim    #86a9b5              secondary text
+ *   panel       #031117cc            panel fill
+ *   ink-on      #071013              text on an accent fill
+ * Zones: #rail (left, hinged on its left edge), #scan (centre, placed by client/modules/scan.lua),
+ * #deck (right, hinged on its right edge), #dock (bottom, leans back). The tilt and sway are motion
+ * channels set by client/modules/view.lua (Config.depth). Sizes that depend on Config.deck are a
+ * stylesheet layer written by view.lua ('sizes'). Backgrounds and borders are drawn on the panels
+ * themselves: an absolute layer inside an auto-height panel gets no height (RmlUi).
+ * No text-transform: RmlUi only upper-cases ASCII, so caps labels are upper-cased in Lua (Locale.upper).
+ */
+
+body, #root { width: 100%; height: 100%; }
+#root { color: #e9fbff; font-family: Rajdhani; font-size: 16dp; }
+
+.grow { flex-grow: 1; }
+.collapsed { display: none; }
+.rule { height: 1dp; margin: 10dp 0 14dp 0; background-color: #4fe3ff38; }
+.rule-seg { width: 56dp; height: 2dp; background-color: #ff3b47; }
+.ico { width: 20dp; height: 20dp; flex-shrink: 0; }
+.ico path { stroke: #4fe3ffcc; stroke-width: 1.6dp; fill: transparent; stroke-linejoin: round; stroke-linecap: round; }
+
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes draw-a { from { trim-end: 0; } to { trim-end: 1; } }
+@keyframes draw-b { from { trim-end: 0; } to { trim-end: 1; } }
+@keyframes ping { from { transform: scale(0.7); opacity: 0.9; } to { transform: scale(1.5); opacity: 0; } }
+@keyframes breathe { from { opacity: 0.55; } to { opacity: 1; } }
+
+/* ---- the character's area ---- */
+
+#stage { position: absolute; left: 0; top: 0; right: 0; bottom: 0; cursor: move; }
+#dpref { position: absolute; left: 0; top: 0; width: 100dp; height: 100dp; opacity: 0; pointer-events: none; }
+
+/* ---- the scan (pointer-events is not inherited: every element of the layer lets the mouse through) ---- */
+
+#scan { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+#scan, #scan div, #scan span, #scan path { pointer-events: none; }
+#root.veiled #scan, #scan.off { visibility: hidden; }
+
+.brk {
+    position: absolute; left: 0; top: 0; width: 30dp; height: 30dp;
+    stroke: #4fe3ff; stroke-width: 2dp; fill: transparent; stroke-linecap: square; trim-end: 1;
+    filter: glow(5dp #4fe3ff 0.6);
+    opacity: 0; transition: opacity 0.25s cubic-out;
+}
+#brk-tl, #brk-br { stroke: #ff3b47; filter: glow(5dp #ff3b47 0.55); }
+#scan.placed .brk { opacity: 1; }
+#scan.draw-a .brk { animation: 0.7s cubic-out draw-a; }
+#scan.draw-b .brk { animation: 0.7s cubic-out draw-b; }
+
+/* callouts: a 0 x 0 box on the body point; dot, leader and label hang around it */
+.co { position: absolute; left: 0; top: 0; width: 0; height: 0; opacity: 1; transition: opacity 0.18s cubic-out; }
+.co.gone { opacity: 0; }
+.co-dot {
+    position: absolute; left: -8dp; top: -8dp; width: 16dp; height: 16dp;
+    border: 1dp #4fe3ffcc; border-radius: 8dp; background-color: #03111766;
+    z-index: 3;
+}
+.co-core { position: absolute; left: 4dp; top: 4dp; width: 6dp; height: 6dp; border-radius: 3dp; background-color: #ff3b47; }
+.co-ping {
+    position: absolute; left: -12dp; top: -12dp; width: 24dp; height: 24dp;
+    border: 1dp #ff3b47; border-radius: 12dp; opacity: 0;
+    animation: 1.8s cubic-out infinite ping;
+}
+.co-lead {
+    position: absolute; top: -32dp; width: 120dp; height: 34dp;
+    stroke: #4fe3ffcc; stroke-width: 1.2dp; fill: transparent; trim-end: 1;
+    z-index: 1;
+}
+.co-lead-r { left: 0; }
+.co-lead-l { left: -120dp; display: none; }
+.co.left .co-lead-l { display: block; }
+.co.left .co-lead-r { display: none; }
+#scan.draw-a .co-lead { animation: 0.45s cubic-out draw-a; }
+#scan.draw-b .co-lead { animation: 0.45s cubic-out draw-b; }
+/*
+ * The label: a FIXED width (inside the 0 x 0 .co anchor a shrink-to-fit width collapses and squeezes the
+ * text; Lua's TAG in client/modules/scan.lua = leader 124 + this outer width 216), a dark backing and a
+ * text shadow so it reads over skin, hair and bright scenes (as the opx_character selection screen). The
+ * leader line (y -26 from the point) meets the label's middle.
+ */
+.co-tag {
+    position: absolute; left: 124dp; top: -47dp; width: 196dp; overflow: hidden;
+    padding: 5dp 9dp; white-space: nowrap; text-align: left;
+    background-color: #031117e0; border-left: 2dp #ff3b47;
+    z-index: 4;
+}
+.co.left .co-tag { left: auto; right: 124dp; text-align: right; border-left-width: 0; border-right: 2dp #ff3b47; }
+.co-name {
+    display: block; font-family: "Chakra Petch"; font-size: 14dp; line-height: 18dp;
+    letter-spacing: 2dp; color: #e9fbff; font-effect: shadow(0dp 1dp #000000d9);
+}
+.co-sub {
+    display: block; font-family: "Roboto Mono"; font-size: 11dp; line-height: 14dp; color: #9fc3cf;
+    font-effect: shadow(0dp 1dp #000000d9);
+}
+
+/* ---- veil ---- */
+
+#veil {
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none;
+    background-color: #00080cf2; opacity: 0; visibility: hidden;
+    display: flex; justify-content: center; align-items: center;
+    transition: opacity 0.25s cubic-out;
+}
+#veil.on { opacity: 1; visibility: visible; }
+.veil-core { align-items: center; }
+.veil-text { margin-top: 12dp; color: #86a9b5; font-size: 14dp; letter-spacing: 3dp; }
+.veil-sub { margin-top: 4dp; font-family: "Chakra Petch"; font-size: 13dp; letter-spacing: 3dp; color: #4fe3ff; }
+.ring {
+    width: 34dp; height: 34dp; stroke: #4fe3ff; stroke-width: 2dp; fill: transparent; trim-end: 0.72;
+    animation: 1.1s linear infinite spin;
+}
+.ring.small { width: 16dp; height: 16dp; stroke-width: 1.5dp; margin-right: 8dp; flex-shrink: 0; }
+
+/* ---- mode, top left ---- */
+
+#head { position: absolute; left: 48dp; top: 44dp; width: 440dp; pointer-events: none; }
+.title {
+    font-family: "Chakra Petch"; font-size: 24dp; line-height: 28dp; letter-spacing: 2dp;
+    color: #e9fbff; filter: glow(6dp #4fe3ff 0.5);
+}
+.sub { margin-top: 2dp; color: #86a9b5; font-size: 15dp; }
+
+/* ---- rail ---- */
+
+#rail { position: absolute; left: 48dp; top: 190dp; width: 280dp; transform-origin: 0% 50%; }
+.rail-cap { width: 60dp; height: 10dp; background-color: #031117cc; border-left: 2dp #ff3b47; border-right: 1dp #4fe3ff33; }
+.rail-cap.top { border-top: 1dp #4fe3ff; }
+.rail-cap.bottom { border-bottom: 1dp #4fe3ff; }
+
+.tab { height: 56dp; align-items: center; cursor: pointer; }
+.tab-cell {
+    position: relative; width: 60dp; height: 56dp; flex-shrink: 0;
+    display: flex; justify-content: center; align-items: center;
+    background-color: #031117cc;
+    border-left: 2dp #ff3b47; border-right: 1dp #4fe3ff33;
+    transition: background-color 0.12s cubic-out;
+}
+.tab:hover .tab-cell { background-color: #06222cdb; }
+.tab.on .tab-cell { background-color: #22080ddb; decorator: linear-gradient(90deg, #ff3b4740, #ff3b4708); }
+.tab-ico { width: 22dp; height: 22dp; }
+.tab-ico path { stroke: #4fe3ffb3; stroke-width: 1.6dp; fill: transparent; stroke-linejoin: round; stroke-linecap: round; }
+.tab:hover .tab-ico path { stroke: #e9fbff; }
+.tab.on .tab-ico path { stroke: #ff3b47; }
+.tab-mark { position: absolute; right: -2dp; top: 14dp; width: 3dp; height: 28dp; background-color: #ff3b47; opacity: 0; }
+.tab.on .tab-mark { opacity: 1; box-shadow: #ff3b47aa 0dp 0dp 8dp 0dp; }
+.tab-pulse {
+    position: absolute; left: 11dp; top: 9dp; width: 36dp; height: 36dp;
+    border: 1dp #ff3b47; border-radius: 18dp; opacity: 0;
+}
+.tab.on .tab-pulse { animation: 1.6s cubic-out infinite ping; }
+
+.tab-tag { margin-left: 14dp; align-items: center; transition: opacity 0.15s cubic-out; }
+.tab-n { font-family: "Roboto Mono"; font-size: 11dp; color: #86a9b580; margin-right: 8dp; }
+.tab.seen .tab-n { color: #4fe3ffb3; }
+.tab.on .tab-n { color: #ff3b47; }
+.tab-label {
+    font-family: "Chakra Petch"; font-size: 14dp; letter-spacing: 3dp; color: #86a9b5;
+    white-space: nowrap;
+}
+.tab:hover .tab-label { color: #e9fbff; }
+.tab.on .tab-label { color: #e9fbff; filter: glow(5dp #ff3b47 0.45); }
+#root.icons-only .tab-tag { opacity: 0; }
+#root.icons-only .tab:hover .tab-tag, #root.icons-only .tab.on .tab-tag { opacity: 1; }
+
+/* ---- deck ---- */
+
+#deck {
+    position: absolute; right: 56dp; top: 92dp; width: 452dp; padding: 20dp 24dp 22dp 24dp;
+    transform-origin: 100% 50%;
+    background-color: #031117cc;
+    border: 1dp #4fe3ff33; border-right-width: 2dp; border-right-color: #ff3b47;
+}
+.deck-head { align-items: flex-end; flex-shrink: 0; }
+.deck-n { font-family: "Roboto Mono"; font-size: 18dp; color: #ff3b47; margin-right: 8dp; }
+.deck-slash { font-family: "Roboto Mono"; font-size: 18dp; color: #4fe3ff80; margin-right: 10dp; }
+#deck-title {
+    font-family: "Chakra Petch"; font-size: 24dp; letter-spacing: 2dp; color: #e9fbff;
+    filter: glow(6dp #4fe3ff 0.45); white-space: nowrap;
+}
+.deck-total { font-family: "Roboto Mono"; font-size: 11dp; letter-spacing: 1dp; color: #86a9b5; flex-shrink: 0; }
+.empty { margin-top: 4dp; color: #86a9b5; }
+
+/* profile */
+.prow {
+    padding: 12dp 14dp 14dp 14dp; margin-bottom: 8dp; cursor: pointer;
+    border-left: 2dp #4fe3ff33; background-color: #4fe3ff08;
+    transition: background-color border-color 0.12s cubic-out;
+}
+.prow:hover { background-color: #4fe3ff12; }
+.prow.sel { border-left-color: #ff3b47; decorator: linear-gradient(90deg, #ff3b4730, #ff3b4704); }
+.plabel {
+    margin-bottom: 9dp; color: #4fe3ff; font-family: "Chakra Petch"; font-size: 12dp;
+    letter-spacing: 3dp;
+}
+.prow.sel .plabel { color: #ff3b47; }
+.pnow { margin-bottom: 9dp; font-family: "Roboto Mono"; font-size: 11dp; color: #86a9b5; flex-shrink: 0; }
+.phint { margin-top: 8dp; color: #86a9b5; font-size: 14dp; }
+
+.seg {
+    flex: 1 1 0; height: 44dp; margin-right: 8dp; cursor: pointer;
+    display: flex; justify-content: center; align-items: center;
+    font-family: "Chakra Petch"; font-size: 15dp; letter-spacing: 2dp; color: #e9fbff;
+    decorator: fx(chamfer 7 1 0.01 0 #4fe3ff80);
+}
+.seg:last-child { margin-right: 0; }
+.seg:hover { decorator: fx(chamfer 7 1 0.2 0 #4fe3ff); }
+.seg.on { color: #071013; decorator: fx(chamfer-solid 7 4 0 0 #ff3b47); }
+
+/* starting look cards: the picture (fixed card height from view.lua's size layer), its name over a shade */
+.chip {
+    position: relative; flex: 1 1 0; height: 144dp; margin-right: 8dp; cursor: pointer; overflow: hidden;
+    background-color: #00141c99; border: 1dp #4fe3ff33;
+    transition: border-color 0.12s cubic-out;
+}
+.chip:last-child { margin-right: 0; }
+.chip:hover { border-color: #4fe3ffb3; }
+.chip.on { border: 2dp #ff3b47; box-shadow: #ff3b4766 0dp 0dp 12dp 0dp; }
+.chip-img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0.8; pointer-events: none; }
+.chip:hover .chip-img, .chip.on .chip-img { opacity: 1; }
+.chip-initial {
+    position: absolute; left: 0; right: 0; top: 34dp; text-align: center;
+    font-family: "Chakra Petch"; font-size: 40dp; color: #4fe3ff66; pointer-events: none;
+}
+.chip.on .chip-initial { color: #ff3b47; }
+.chip-shade { position: absolute; left: 0; right: 0; bottom: 0; height: 44dp; decorator: linear-gradient(180deg, #02070b00, #02070bf2); pointer-events: none; }
+.chip-name {
+    position: absolute; left: 4dp; right: 4dp; bottom: 7dp; text-align: center; pointer-events: none;
+    font-family: "Chakra Petch"; font-size: 13dp; letter-spacing: 2dp; color: #e9fbff; white-space: nowrap;
+    font-effect: shadow(0dp 1dp #000000d9);
+}
+.chip.on .chip-name { color: #ff3b47; }
+
+#random {
+    height: 44dp; padding: 0 16dp; align-items: center; justify-content: center; cursor: pointer;
+    font-family: "Chakra Petch"; font-size: 15dp; letter-spacing: 2dp;
+    decorator: fx(chamfer 7 1 0.01 0 #4fe3ff80);
+}
+#random .rnd-label { margin: 0 12dp 0 10dp; }
+#random .key { margin-right: 0; }
+#random:hover { decorator: fx(chamfer 7 1 0.2 0 #4fe3ff); }
+#random:active { decorator: fx(chamfer-solid 7 4 0 0 #ff3b47); color: #071013; }
+#random:active .key { color: #071013; border-color: #07101399; }
+
+/* the selected option, big, with its carousel */
+#focus { flex-shrink: 0; margin-bottom: 4dp; }
+.f-top { align-items: flex-end; }
+#f-label {
+    max-width: 300dp; overflow: hidden;  /* a long catalogue name never pushes the counter out */
+    font-family: "Chakra Petch"; font-size: 22dp; line-height: 26dp; letter-spacing: 2dp;
+    color: #e9fbff; white-space: nowrap;
+}
+#f-count { font-family: "Roboto Mono"; font-size: 22dp; line-height: 26dp; color: #ff3b47; flex-shrink: 0; }
+.f-of { font-size: 13dp; color: #86a9b5; }
+.f-values { height: 24dp; margin: 2dp 0 10dp 0; overflow: hidden; }
+#f-value, #f-peek { display: block; font-size: 18dp; line-height: 24dp; white-space: nowrap; }
+#f-value { color: #4fe3ff; }
+#f-peek { color: #e9fbff; }
+
+#carousel { align-items: center; }
+.strip-clip { position: relative; overflow: hidden; flex-shrink: 0; }
+#strip { justify-content: center; align-items: center; height: 100%; }
+.cell {
+    position: relative; margin: 0 4dp; flex-shrink: 0; cursor: pointer;
+    border: 1dp #4fe3ff33; background-color: #00141ccc;
+    display: flex; justify-content: center; align-items: center;
+    transition: border-color 0.1s cubic-out;
+}
+.cell:hover { border-color: #4fe3ffb3; }
+.cell.on { border: 2dp #ff3b47; box-shadow: #ff3b4766 0dp 0dp 12dp 0dp; }
+.cell img, .cell .sw, .cell .n, .cell .cn { pointer-events: none; }
+/* the other choices a little dimmed so the selected one stands out */
+.cell img, .cell .sw { opacity: 0.7; transition: opacity 0.1s cubic-out; }
+.cell:hover img, .cell:hover .sw, .cell.on img, .cell.on .sw { opacity: 1; }
+.cell .n { font-family: "Roboto Mono"; font-size: 14dp; color: #86a9b5; }
+.cell.on .n { color: #e9fbff; }
+/* the choice number on a picture or a swatch, bottom right over a dark tab */
+.cell .cn {
+    position: absolute; right: 0; bottom: 0; width: 16dp; text-align: center;
+    font-family: "Roboto Mono"; font-size: 9dp; line-height: 12dp; color: #b4ccd4;
+    background-color: #030f14cc;
+}
+.cell.on .cn { color: #071013; background-color: #ff3b47; }
+
+.nav { width: 32dp; height: 40dp; flex-shrink: 0; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+.nav path { width: 18dp; height: 18dp; stroke: #4fe3ffb3; stroke-width: 2dp; fill: transparent; }
+.nav:hover path { stroke: #ff3b47; }
+.nav.sm { width: 24dp; height: 30dp; }
+.nav.sm path { width: 13dp; height: 13dp; stroke-width: 1.8dp; }
+
+.gauge { position: relative; height: 3dp; margin-top: 12dp; background-color: #4fe3ff26; }
+.gauge-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background-color: #ff3b47; transition: width 0.25s cubic-out; }
+
+/* the other options, compact */
+#rows { margin-top: 14dp; overflow-y: auto; padding-right: 4dp; }
+.opt {
+    height: 34dp; margin-bottom: 2dp; align-items: center;
+    border-left: 2dp #4fe3ff26; background-color: #4fe3ff06;
+    transition: background-color border-color 0.12s cubic-out;
+}
+.opt:hover { background-color: #4fe3ff12; }
+.opt.selected { border-left-color: #ff3b47; decorator: linear-gradient(90deg, #ff3b4738, #ff3b4704); }
+.opt-mark { width: 5dp; height: 5dp; margin-left: 10dp; flex-shrink: 0; transform: rotate(45deg); background-color: #4fe3ff59; }
+.opt.selected .opt-mark { background-color: #ff3b47; }
+.opt-name { flex: 1 1 0; height: 34dp; padding-left: 10dp; cursor: pointer; display: flex; align-items: center; overflow: hidden; }
+.opt-label { font-size: 15dp; letter-spacing: 1dp; color: #b4ccd4; white-space: nowrap; }
+.opt.selected .opt-label { color: #e9fbff; }
+.opt-count { width: 60dp; flex-shrink: 0; text-align: center; font-family: "Roboto Mono"; font-size: 12dp; color: #86a9b5; }
+.opt.selected .opt-count { color: #ff3b47; }
+
+/* the deck's foot: category at random, undo */
+#deck-foot { margin-top: 12dp; padding-top: 10dp; border-top: 1dp #4fe3ff1f; align-items: center; flex-shrink: 0; }
+.dbtn {
+    height: 30dp; padding: 0 10dp 0 6dp; align-items: center; cursor: pointer; flex-shrink: 0;
+    decorator: fx(chamfer 5 1 0.01 0 #4fe3ff59);
+}
+.dbtn:hover { decorator: fx(chamfer 5 1 0.2 0 #4fe3ff); }
+.dbtn .key { margin-right: 8dp; }
+.dbtn-label { font-family: "Chakra Petch"; font-size: 12dp; letter-spacing: 2dp; color: #b4ccd4; white-space: nowrap; }
+.dbtn:hover .dbtn-label { color: #e9fbff; }
+#undo.off { opacity: 0.35; cursor: default; }
+#undo.off:hover { decorator: fx(chamfer 5 1 0.01 0 #4fe3ff59); }
+
+/* ---- dock ---- */
+
+#dock {
+    position: absolute; left: 48dp; right: 48dp; bottom: 24dp; height: 92dp; padding: 0 0 6dp 0;
+    align-items: flex-end; transform-origin: 50% 100%; pointer-events: none;
+    border-bottom: 1dp #4fe3ff40;
+    decorator: linear-gradient(0deg, #00080c99, #00080c00);
+}
+
+#dock > .grow { pointer-events: none; }
+#stepper { flex-shrink: 0; }
+.steps { align-items: flex-start; }
+.step { align-items: flex-start; cursor: pointer; }
+.link { width: 46dp; height: 1dp; margin: 6dp 6dp 0 6dp; background-color: #4fe3ff33; }
+.step.first .link { display: none; }
+.step.seen .link { background-color: #4fe3ffb3; }
+.step.on .link { background-color: #ff3b47; }
+.dia-box { width: 22dp; align-items: center; }
+.dia {
+    width: 10dp; height: 10dp; transform: rotate(45deg);
+    border: 1.5dp #4fe3ff80; background-color: #03111799;
+}
+.step:hover .dia { border-color: #e9fbff; }
+.step.seen .dia { background-color: #4fe3ff; border-color: #4fe3ff; }
+.step.on .dia {
+    transform: rotate(45deg) scale(1.35); background-color: #ff3b47; border-color: #ff3b47;
+    box-shadow: #ff3b4799 0dp 0dp 10dp 0dp;
+    animation: 1.2s sine-in-out infinite alternate breathe;
+}
+.step-n { margin-top: 7dp; font-family: "Roboto Mono"; font-size: 10dp; color: #86a9b580; }
+.step.seen .step-n { color: #86a9b5; }
+.step.on .step-n { color: #ff3b47; }
+
+.hints { margin-top: 10dp; }
+.hint { align-items: center; margin-right: 16dp; flex-shrink: 0; }
+.key {
+    min-width: 20dp; height: 20dp; padding: 0 5dp; margin-right: 5dp; flex-shrink: 0;
+    display: flex; justify-content: center; align-items: center;
+    font-family: "Roboto Mono"; font-size: 11dp; color: #e9fbff; border: 1dp #4fe3ff80;
+}
+.key path { width: 12dp; height: 12dp; stroke: #e9fbff; stroke-width: 2dp; fill: transparent; }
+.key.wide { padding: 0 7dp; }
+.hint-text { color: #86a9b5; font-size: 12dp; letter-spacing: 2dp; }
+
+.status { align-items: center; margin: 0 18dp 12dp 0; color: #4fe3ff; font-size: 14dp; letter-spacing: 1dp; flex-shrink: 0; }
+.status.error { color: #ffa8ae; }
+.status.warn { color: #ffb547; }
+.status span { font-effect: shadow(0dp 1dp #000000cc); }
+
+.btn {
+    height: 42dp; padding: 0 18dp; margin: 0 0 6dp 10dp; align-items: center; cursor: pointer; flex-shrink: 0;
+    font-family: "Chakra Petch"; font-size: 15dp; letter-spacing: 2dp;
+}
+#cancel { color: #e9fbff; decorator: fx(chamfer 7 1 0.01 0 #4fe3ff80); }
+#cancel:hover { decorator: fx(chamfer 7 1 0.2 0 #4fe3ff); }
+#cancel .key { margin-right: 10dp; }
+#confirm { padding: 0 14dp 0 22dp; color: #071013; decorator: fx(chamfer-solid 7 0 0 0 #ff3b47); }
+#confirm:hover { decorator: fx(chamfer-solid 7 8 0 0 #ff3b47); }
+#confirm .go { width: 12dp; height: 12dp; margin: 0 12dp 0 10dp; fill: #071013; }
+#confirm .key { color: #071013; border-color: #07101399; margin-right: 0; }
+#confirm.busy { opacity: 0.55; }
+/* asked twice (Config.safety): the button that will act on the next press breathes */
+#confirm.armed { animation: 0.7s sine-in-out infinite alternate breathe; }
+#cancel.armed { color: #ffb547; decorator: fx(chamfer 7 1 0.2 0 #ffb547); }
+
+/* calm motion (Config.reducedMotion): no loops, nothing draws itself */
+#root.calm .co-ping, #root.calm .tab-pulse, #root.calm .step.on .dia, #root.calm .ring, #root.calm #confirm.armed { animation: none; }

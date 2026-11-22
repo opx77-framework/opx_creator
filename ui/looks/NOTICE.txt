@@ -1,0 +1,5 @@
+Starting look pictures of opx_creator
+
+corpo.png, nomad.png and street.png were copied unchanged from the official Open77 system resource
+open77_creator (ui/looks/). They picture the game's own starting looks (CD PROJEKT RED assets) and are
+shown on the Profile entry of the creator (Config.looks maps a preset name to a file here).

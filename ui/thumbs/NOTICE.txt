@@ -1,0 +1,10 @@
+Option thumbnails of opx_creator
+
+The PNG files in this folder are cut from Cyberpunk 2077's own character-creation atlas. They were
+copied unchanged from the official Open77 system resource open77_creator (ui/thumbs/, produced by its
+tools/generate_thumbs.py), together with the option -> picture mapping (client/modules/thumbs.lua,
+from open77_creator's shared/thumbs.lua).
+
+The pictures are game assets (CD PROJEKT RED). They are shipped to the game's own players, who
+already own them, only to show the creator options. After a game update that changes the creator,
+take both the folder and the mapping again from the current open77_creator build.

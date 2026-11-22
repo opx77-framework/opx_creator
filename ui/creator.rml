@@ -1,0 +1,212 @@
+<rml>
+<head>
+    <title>Character creator</title>
+    <link type="text/rcss" href="nui://open77/open77.rcss"/>
+    <link type="text/rcss" href="creator.rcss"/>
+</head>
+<body data-model="cc">
+<div id="root" data-class-calm="calm" data-class-icons-only="iconsOnly" data-class-veiled="veiled">
+    <!-- The character's area: the wheel zooms, a drag turns and pans (client/modules/view.lua). -->
+    <div id="stage"></div>
+    <!-- 100 dp reference: the scan converts projected points to dp with it. -->
+    <div id="dpref"></div>
+
+    <!-- The biometric scan, placed every frame by client/modules/scan.lua. Nothing here takes the mouse. -->
+    <div id="scan">
+        <path id="brk-tl" class="brk" view-box="0 0 30 30" d="M1.5 29 L1.5 1.5 L29 1.5"/>
+        <path id="brk-tr" class="brk" view-box="0 0 30 30" d="M1 1.5 L28.5 1.5 L28.5 29"/>
+        <path id="brk-bl" class="brk" view-box="0 0 30 30" d="M1.5 1 L1.5 28.5 L29 28.5"/>
+        <path id="brk-br" class="brk" view-box="0 0 30 30" d="M1 28.5 L28.5 28.5 L28.5 1"/>
+
+        <div class="co gone" data-for="c, i : callouts" data-attr-id="'co' + i">
+            <div class="co-ping"></div>
+            <div class="co-dot"><div class="co-core"></div></div>
+            <path class="co-lead co-lead-r" view-box="0 0 120 34" d="M2 32 L30 6 L120 6"/>
+            <path class="co-lead co-lead-l" view-box="0 0 120 34" d="M118 32 L90 6 L0 6"/>
+            <div class="co-tag">
+                <span class="co-name">{{c.label}}</span>
+                <span class="co-sub">{{c.sub}}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Over the scene while a new body is built (opening, body type change). -->
+    <div id="veil" data-class-on="veiled">
+        <div class="veil-core col">
+            <shape type="circle" class="ring"/>
+            <span class="veil-text">{{t.rebuilding}}</span>
+            <span class="veil-sub">{{veilLabel}}</span>
+        </div>
+    </div>
+
+    <!-- Mode, top left (flat) -->
+    <div id="head" class="col">
+        <span class="title">{{title}}</span>
+        <span class="sub">{{subtitle}}</span>
+    </div>
+
+    <!-- Rail: Profile, then the categories; hinged on the left edge, turned toward the character -->
+    <div id="rail" class="col">
+        <div class="rail-cap top"></div>
+        <div class="tab row" data-for="cat, i : categories" data-if="cat.show" data-class-on="cat.id == category" data-class-seen="cat.seen"
+             data-event-click="tab(cat.id)" data-event-mouseover="hover()">
+            <div class="tab-cell">
+                <div class="tab-pulse"></div>
+                <div class="tab-ico" data-rml="cat.icon"></div>
+                <div class="tab-mark"></div>
+            </div>
+            <div class="tab-tag row">
+                <span class="tab-n">{{cat.n}}</span>
+                <span class="tab-label">{{cat.label}}</span>
+            </div>
+        </div>
+        <div class="rail-cap bottom"></div>
+    </div>
+
+    <!-- Deck of the active entry, hinged on the right edge -->
+    <div id="deck" class="col">
+        <div class="deck-head row">
+            <span class="deck-n">{{categoryIndex}}</span>
+            <span class="deck-slash">/</span>
+            <span id="deck-title">{{categoryLabel}}</span>
+            <span class="grow"></span>
+            <span class="deck-total">{{optionCount}} {{t.roOptions}}</span>
+        </div>
+        <div class="rule"><div class="rule-seg"></div></div>
+
+        <!-- Profile: body type, starting looks, randomize -->
+        <div id="profile" class="col" data-class-collapsed="!isProfile">
+            <div id="prow0" class="prow col" data-class-sel="prow == 0" data-event-click="prow(0)">
+                <span class="plabel">{{t.bodyType}}</span>
+                <div class="segs row pval">
+                    <div class="seg" data-class-on="family == 'male'" data-event-click="family('male')" data-event-mouseover="hover()"><span>{{t.male}}</span></div>
+                    <div class="seg" data-class-on="family == 'female'" data-event-click="family('female')" data-event-mouseover="hover()"><span>{{t.female}}</span></div>
+                </div>
+            </div>
+            <div id="prow1" class="prow col" data-if="hasPresets" data-class-sel="prow == 1" data-event-click="prow(1)">
+                <div class="row">
+                    <span class="plabel grow">{{t.presets}}</span>
+                    <span class="pnow">{{presetLabel}}</span>
+                </div>
+                <div class="chips row pval">
+                    <div class="chip" data-for="p : presets" data-class-on="p.name == preset" data-event-click="preset(p.name)" data-event-mouseover="hover()">
+                        <img class="chip-img" data-if="p.img != ''" data-attr-src="p.img"/>
+                        <span class="chip-initial" data-if="p.img == ''">{{p.initial}}</span>
+                        <div class="chip-shade"></div>
+                        <span class="chip-name">{{p.label}}</span>
+                    </div>
+                </div>
+            </div>
+            <div id="prow2" class="prow col" data-class-sel="prow == 2" data-event-click="prow(2)">
+                <div id="random" class="row pval" data-event-click="random()" data-event-mouseover="hover()">
+                    <div class="ico"><path view-box="0 0 24 24" d="M4 7.5 L12 3.5 L20 7.5 V16.5 L12 20.5 L4 16.5 Z M4 7.5 L12 11.5 L20 7.5 M12 11.5 V20.5"/></div>
+                    <span class="rnd-label">{{t.random}}</span>
+                    <div class="key"><span>R</span></div>
+                </div>
+                <span class="phint">{{t.randomHint}}</span>
+            </div>
+        </div>
+
+        <!-- A category: the selected option big, with its carousel -->
+        <div id="focus" class="col" data-class-collapsed="isProfile || !hasRows">
+            <div class="f-top row">
+                <span id="f-label">{{focus.label}}</span>
+                <span class="grow"></span>
+                <span id="f-count">{{focus.position}}<span class="f-of">/{{focus.count}}</span></span>
+            </div>
+            <!-- the current value; while a thumbnail is hovered, the name of that one -->
+            <div class="f-values">
+                <span id="f-value" data-if="peek == ''">{{focus.value}}</span>
+                <span id="f-peek" data-if="peek != ''">{{peek}}</span>
+            </div>
+            <div id="carousel" class="row">
+                <div class="nav" data-event-click="step(focus.i, -1)" data-event-mouseover="hover()"><path view-box="0 0 24 24" d="M15 5 L8 12 L15 19"/></div>
+                <div class="strip-clip">
+                    <div id="strip" class="row">
+                        <div class="cell" data-for="c : strip" data-if="c.show" data-class-on="c.on" data-class-swatch="c.swatch"
+                             data-class-num="c.plain" data-event-click="pick(focus.i, c.p)" data-event-mouseover="peek(focus.i, c.p)">
+                            <img data-if="c.src != ''" data-attr-src="c.src"/>
+                            <div class="sw" data-if="c.swatch" data-style-background-color="c.color"></div>
+                            <span class="n" data-if="c.plain">{{c.n}}</span>
+                            <span class="cn" data-if="!c.plain">{{c.n}}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="nav" data-event-click="step(focus.i, 1)" data-event-mouseover="hover()"><path view-box="0 0 24 24" d="M9 5 L16 12 L9 19"/></div>
+            </div>
+            <div class="gauge"><div class="gauge-fill" data-style-width="focus.fill + '%'"></div></div>
+        </div>
+        <div class="empty" data-if="!isProfile &amp;&amp; !hasRows"><span>{{t.empty}}</span></div>
+
+        <!-- Every option of the category, compact; the selected one is lit -->
+        <div id="rows" class="col" data-class-collapsed="isProfile">
+            <div class="opt row" data-for="row, i : rows" data-if="row.show" data-attr-id="'row' + i" data-class-selected="row.selected">
+                <div class="opt-mark"></div>
+                <div class="opt-name" data-event-click="select(i)" data-event-mouseover="hover()"><span class="opt-label">{{row.label}}</span></div>
+                <div class="nav sm" data-event-click="step(i, -1)" data-event-mouseover="hover()"><path view-box="0 0 24 24" d="M15 5 L8 12 L15 19"/></div>
+                <span class="opt-count">{{row.pos}}/{{row.cnt}}</span>
+                <div class="nav sm" data-event-click="step(i, 1)" data-event-mouseover="hover()"><path view-box="0 0 24 24" d="M9 5 L16 12 L9 19"/></div>
+            </div>
+        </div>
+
+        <!-- Category at random (R) and Undo (Backspace / Ctrl+Z) -->
+        <div id="deck-foot" class="row">
+            <div id="roll" class="dbtn row" data-if="!isProfile &amp;&amp; hasRows" data-event-click="roll()" data-event-mouseover="hover()">
+                <div class="key"><span>R</span></div><span class="dbtn-label">{{t.rollCategory}}</span>
+            </div>
+            <span class="grow"></span>
+            <div id="undo" class="dbtn row" data-class-off="!canUndo" data-event-click="undo()" data-event-mouseover="hover()">
+                <div class="key"><path view-box="0 0 24 24" d="M9 6 H20 V18 H9 L4 12 Z M12 9.5 L16 14.5 M16 9.5 L12 14.5"/></div>
+                <span class="dbtn-label">{{t.undo}}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dock: progress stepper and key hints, status, Cancel / Confirm -->
+    <div id="dock" class="row">
+        <div id="stepper" class="col">
+            <div class="steps row" data-if="multiEntry">
+                <div class="step row" data-for="cat, i : categories" data-if="cat.show" data-class-on="cat.id == category" data-class-seen="cat.seen"
+                     data-class-first="cat.first" data-event-click="tab(cat.id)" data-event-mouseover="hover()">
+                    <div class="link"></div>
+                    <div class="dia-box col">
+                        <div class="dia"></div>
+                        <span class="step-n">{{cat.n}}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="hints row">
+                <div class="hint row"><div class="key"><span>Q</span></div><div class="key"><span>E</span></div><span class="hint-text">{{t.hintRotate}}</span></div>
+                <div class="hint row">
+                    <div class="key"><path view-box="0 0 24 24" d="M6 15 L12 9 L18 15"/></div>
+                    <div class="key"><path view-box="0 0 24 24" d="M6 9 L12 15 L18 9"/></div>
+                    <span class="hint-text">{{t.hintOption}}</span>
+                </div>
+                <div class="hint row">
+                    <div class="key"><path view-box="0 0 24 24" d="M15 6 L9 12 L15 18"/></div>
+                    <div class="key"><path view-box="0 0 24 24" d="M9 6 L15 12 L9 18"/></div>
+                    <span class="hint-text">{{t.hintValue}}</span>
+                </div>
+                <div class="hint row" data-if="multiEntry"><div class="key wide"><span>{{t.keyTab}}</span></div><span class="hint-text">{{t.hintCategory}}</span></div>
+                <div class="hint row"><div class="key wide"><span>{{t.keyWheel}}</span></div><span class="hint-text">{{t.hintZoom}}</span></div>
+                <div class="hint row"><div class="key wide"><span>{{t.keyDrag}}</span></div><span class="hint-text">{{t.hintDrag}}</span></div>
+                <div class="hint row" data-if="t.hasRecentre"><div class="key"><span>{{t.keyRecentre}}</span></div><span class="hint-text">{{t.hintRecentre}}</span></div>
+            </div>
+        </div>
+        <span class="grow"></span>
+        <div class="status row" data-if="status != ''" data-class-error="statusError" data-class-warn="statusWarn">
+            <shape type="circle" class="ring small" data-if="busy"/>
+            <span>{{status}}</span>
+        </div>
+        <div id="cancel" class="btn row" data-if="canCancel" data-class-armed="cancelArmed" data-event-click="cancel()" data-event-mouseover="hover()">
+            <div class="key wide"><span>ESC</span></div><span>{{cancelLabel}}</span>
+        </div>
+        <div id="confirm" class="btn row" data-class-busy="saving" data-class-armed="confirmArmed" data-event-click="save()" data-event-mouseover="hover()">
+            <span>{{confirmLabel}}</span>
+            <path class="go" view-box="0 0 24 24" d="M8 5 L16 12 L8 19 Z"/>
+            <div class="key wide"><span>{{t.keyEnter}}</span></div>
+        </div>
+    </div>
+</div>
+</body>
+</rml>
