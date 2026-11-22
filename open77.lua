@@ -18,6 +18,7 @@ permissions {
     "ui.vanilla.hud",      -- client: Open77.hud.setCinematic (clean view), Open77.hud.notify (staff notices)
     "world.effects",       -- client: Open77.sfx.play2d (UI sounds)
     "session.locale",      -- client: Open77.session.locale (Config.locale = 'auto')
+    "http.request", -- server: Open77.http.get (update check, Config.versionCheck)
 }
 
 shared_script "config.lua"
@@ -25,6 +26,7 @@ shared_script "config.lua"
 server_scripts {
     "server/state.lua",
     "server/main.lua",
+    "server/version.lua",
 }
 
 client_script "client/main.lua"
